@@ -8,6 +8,10 @@ module VX_lsu_unit #(
     input wire              clk,
     input wire              reset,
 
+`ifdef PERF_ENABLE
+    VX_perf_memsys_if    perf_memsys_if,
+`endif
+
    // Dcache interface
     VX_dcache_req_if.master dcache_req_if,
     VX_dcache_rsp_if.slave  dcache_rsp_if,
@@ -307,6 +311,24 @@ module VX_lsu_unit #(
     `SCOPE_ASSIGN (dcache_rsp_uuid,  rsp_uuid);    
     `SCOPE_ASSIGN (dcache_rsp_data,  dcache_rsp_if.data);
     `SCOPE_ASSIGN (dcache_rsp_tag,   mbuf_raddr);
+
+`ifdef PERF_ENABLE
+    reg [`PERF_CTR_BITS-1:0] perf_same_access;
+
+    always @(posedge clk) begin
+        if (reset) begin
+            perf_same_access <= 0;
+            
+        end else begin
+            if(req_is_dup) begin
+                perf_same_access <= perf_same_access + 1;
+            end 
+        end
+
+    end
+
+    assign perf_memsys_if.same_access = perf_same_access;
+`endif
 
 `ifndef SYNTHESIS
     reg [`LSUQ_SIZE-1:0][(`NW_BITS + 32 + `NR_BITS + `UUID_BITS + 64 + 1)-1:0] pending_reqs;
